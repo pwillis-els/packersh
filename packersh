@@ -4,7 +4,7 @@
 
 set -e -u -o pipefail
 [ "${DEBUG:-0}" = "1" ] && set -x       # set DEBUG=1 to enable tracing
-VERSION="0.12"
+VERSION="0.2"
 
 # ---------------------------------------------------------------------------------------- #
 _usage () {
@@ -34,7 +34,7 @@ _usage () {
                       ( config: NO_DEP_CMDS=1 )
     -N              Dry-run mode (don't execute anything).
                       ( config: DRYRUN=1 )
-    -n              Don't remove the temporary PKR_DATA_DIR.
+    -n              Don't remove the temporary PACKER_CONFIG_DIR.
                       ( config: NO_CLEANUP_TMP=1 )
     -v              Verbose mode.
                       ( config: DEBUG=1 )
@@ -74,7 +74,7 @@ declare -a WRAPPER_COMMANDS=(shell clean clean_modules approve)
 
 _cmd_build () {
     declare -a args=("$@")
-    [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_validate "${args[@]}"
+    [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_validate
     _runcmd "$PACKER" build "${VARFILE_ARG[@]}" "${BUILD_ARGS[@]}" "${args[@]}" "${PACKER_TEMPLATE:-}"
 }
 _cmd_validate () {
@@ -126,7 +126,7 @@ _cleanup_tmp () {
         echo "$0: Error detected; not removing '${PKR_TMPDIR:-}'"
     else
         if [ "${NO_CLEANUP_TMP:-0}" = "1" ] ; then
-            echo "$0: Not removing temporary PKR_DATA_DIR '${PKR_TMPDIR:-}'"
+            echo "$0: Not removing temporary PACKER_CONFIG_DIR '${PKR_TMPDIR:-}'"
         elif [ -n "${PKR_TMPDIR:-}" ] ; then
             rm -rf "$PKR_TMPDIR"
         fi
@@ -143,20 +143,20 @@ _pkr_ver () {
     printf "%s\n" "${pkrver_a[@]}"
 }
 _pkr_set_datadir () {
-    # Generate a temporary, but predictable, PKR_DATA_DIR, if not set yet
+    # Generate a temporary, but predictable, PACKER_CONFIG_DIR, if not set yet
     if [ -z "${PKR_DD_UNIQUE_NAME:-}" ] ; then
         # Generate a truncated MD5 hash based on the name of both the directory where
         # we ran packersh from, and any '-C' option (the root module). This way we
         # can run 'packersh' from the same directory on multiple root modules, and
-        # they will each end up with a different PKR_DATA_DIR.
+        # they will each end up with a different PACKER_CONFIG_DIR.
         PKR_DD_UNIQUE_NAME="$(printf "%s\n%s\n" "$PACKER_PWD" "$PACKER_MODULE_PWD" | md5sum - | awk '{print $1}' | cut -b 1-10)"
     fi
-    if [ -z "${PKR_DATA_DIR:-}" ] ; then
+    if [ -z "${PACKER_CONFIG_DIR:-}" ] ; then
         _cleanup_tmp
         export PKR_TMPDIR="${TMPDIR:-/tmp}/pkrsh.$PKR_DD_UNIQUE_NAME"
         mkdir -p "$PKR_TMPDIR"
         trap _cleanup_tmp EXIT
-        export PKR_DATA_DIR="$PKR_TMPDIR"
+        export PACKER_CONFIG_DIR="$PKR_TMPDIR"
     fi
 }
 _default_vars () {
