@@ -65,7 +65,6 @@ passed to the first recognized command that precedes them.
 EOTUSAGE
     exit 1
 }
-# Commands collected from versions 0.11,0.12,0.13,0.14,0.15,1.0,1.1
 declare -a PKR_COMMANDS=(build console fix fmt hcl2_upgrade init inspect validate version)
 declare -a WRAPPER_COMMANDS=(shell clean clean_modules approve)
 
@@ -93,8 +92,16 @@ _cmd_init () {
     [ "${_already_ran_cmd_init:-0}" = "1" ] && return 0
     _already_ran_cmd_init=1
     declare -a args=("$@")
-    #args+=("${VARFILES[@]}")
-    args+="."
+    # 'init' needs an argument: either the directory with a template, or a template itself
+    if [ -n "${PACKER_TEMPLATE:-}" ] ; then
+        args+=("$PACKER_TEMPLATE")
+    elif [ -n "${PACKER_TEMPLATE_DIR:-}" ] ; then
+        args+=("$PACKER_TEMPLATE_DIR")
+    elif [ -n "${CD_DIR:-}" ] ; then    
+        args+=("$CD_DIR")
+    else
+        args+=("$PACKER_PWD")
+    fi
     _runcmd "$PACKER" init "${INIT_ARGS[@]}" "${args[@]}"
 }
 _cmd_catchall () {
@@ -157,6 +164,11 @@ _pkr_set_datadir () {
         mkdir -p "$PKR_TMPDIR"
         trap _cleanup_tmp EXIT
         export PACKER_CONFIG_DIR="$PKR_TMPDIR"
+        export PACKER_CACHE_DIR="$PACKER_CONFIG_DIR"
+        export PACKER_LOG_PATH="$PACKER_CONFIG_DIR/packer.log"
+        export PACKER_LOG=1
+        export PACKER_PLUGIN_PATH="$HOME/.packer.d/plugins"
+        export TMPDIR="$PACKER_CONFIG_DIR"
     fi
 }
 _default_vars () {
@@ -181,6 +193,11 @@ _default_vars () {
 
     PACKER_TEMPLATE=""
     PACKER_PWD="$(pwd)"
+    if getent passwd "$(id -u)" >/dev/null
+    then defhome="$(getent passwd "$(id -u)" | cut -d : -f 6)"
+    else defhome="$(grep -e "^$(id -un):" /etc/passwd | cut -d : -f 6)"
+    fi
+    HOME="${HOME:-$defhome}"
 }
 _pre_dirchange_vars () {
     if [ ${#VARFILES[@]} -gt 0 ] ; then
@@ -191,7 +208,10 @@ _pre_dirchange_vars () {
 }
 _final_vars () {
     PACKER_MODULE_PWD="$(pwd)"
-    [ -n "${PACKER_TEMPLATE:-}" ] && PACKER_TEMPLATE="$(_readlinkf "${PACKER_TEMPLATE}")"
+    if [ -n "${PACKER_TEMPLATE:-}" ] ; then
+        PACKER_TEMPLATE="$(_readlinkf "${PACKER_TEMPLATE}")"
+        PACKER_TEMPLATE_DIR="$(dirname "$PACKER_TEMPLATE")"
+    fi
     _pkr_set_datadir
 }
 _load_conf () {
