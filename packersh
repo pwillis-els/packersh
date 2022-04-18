@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # packersh - Bash wrapper around Packer
-# Copyright (C) 2020-2021 Peter Willis
+# Copyright (C) 2020-2022 Peter Willis
 
 set -e -u -o pipefail
 [ "${DEBUG:-0}" = "1" ] && set -x       # set DEBUG=1 to enable tracing
@@ -73,7 +73,7 @@ declare -a WRAPPER_COMMANDS=(shell clean clean_modules approve)
 
 _cmd_build () {
     declare -a args=("$@")
-    [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_validate
+    [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_validate "${args[@]}"
     _runcmd "$PACKER" build "${VARFILE_ARG[@]}" "${BUILD_ARGS[@]}" "${args[@]}" "${PACKER_TEMPLATE:-}"
 }
 _cmd_validate () {
